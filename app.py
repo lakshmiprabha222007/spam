@@ -1,24 +1,13 @@
 import streamlit as st
 import joblib
+import numpy as np
 
-# Load model
 model = joblib.load("trained_spam_classifier_model.pkl")
 
-st.title("📩 Spam Message Classifier")
+st.title("Easy Prediction App")
 
-# Text input with example
-message = st.text_area(
-    "Enter Message",
-    placeholder="Example: Congratulations! You won a free prize. Click now!"
-)
+value = st.number_input("Enter any number", value=1)
 
 if st.button("Predict"):
-    if message.strip() == "":
-        st.warning("Please enter a message")
-    else:
-        result = model.predict([message])[0]
-
-        if result == 1:
-            st.error("🚫 SPAM MESSAGE")
-        else:
-            st.success("✅ NOT SPAM")
+    result = model.predict(np.array([[value]]))[0]
+    st.write("Output:", result)
