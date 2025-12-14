@@ -1,21 +1,22 @@
-import streamlit as st
 import pickle
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 
-# Load trained pipeline model
-with open("trained_spam_classifier_model.pkl", "rb") as f:
-    model = pickle.load(f)
+# Example data
+texts = [
+    "Win cash prize now",
+    "Free offer call now",
+    "Hi how are you",
+    "Let's meet tomorrow"
+]
+labels = [1, 1, 0, 0]   # 1 = spam, 0 = ham
 
-st.title("Spam Message Classifier")
+pipeline = Pipeline([
+    ("tfidf", TfidfVectorizer()),
+    ("clf", LogisticRegression())
+])
 
-message = st.text_area("Enter the message")
+pipeline.fit(texts, labels)
 
-if st.button("Predict"):
-    if message.strip() == "":
-        st.warning("Please enter a message")
-    else:
-        prediction = model.predict([message])
-
-        if prediction[0] == 1 or prediction[0] == "spam":
-            st.error("🚫 Spam Message")
-        else:
-            st.success("✅ Not Spam Message")
+pickle.dump(pipeline, open("trained_spam_classifier_model.pkl", "wb"))
