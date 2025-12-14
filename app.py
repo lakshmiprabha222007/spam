@@ -1,12 +1,16 @@
 import streamlit as st
 import joblib
 
-# Load trained model (FIXED LINE)
+# Load model
 model = joblib.load("trained_spam_classifier_model.pkl")
 
 st.title("📩 Spam Message Classifier")
 
-message = st.text_area("Enter Message")
+# Text input with example
+message = st.text_area(
+    "Enter Message",
+    placeholder="Example: Congratulations! You won a free prize. Click now!"
+)
 
 if st.button("Predict"):
     if message.strip() == "":
