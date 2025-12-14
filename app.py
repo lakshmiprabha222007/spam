@@ -1,8 +1,8 @@
 import streamlit as st
-import pickle
+import joblib
 
-with open("trained_spam_classifier_model.pkl", "rb") as f:
-    model = pickle.load(f)
+# Load trained model (FIXED LINE)
+model = joblib.load("trained_spam_classifier_model.pkl")
 
 st.title("📩 Spam Message Classifier")
 
