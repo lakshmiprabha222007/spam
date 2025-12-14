@@ -1,90 +1,79 @@
 import joblib
-import os
 from flask import Flask, request, render_template_string
 
 # --- Configuration ---
-# The name of your uploaded model file
 MODEL_FILE = 'trained_spam_classifier_model.pkl'
 
-# --- Load the Model/Pipeline ---
-# IMPORTANT NOTE: This file must contain the trained scikit-learn Pipeline 
-# object that includes the text vectorizer and the classifier.
+# --- Load the Model/Pipeline at startup ---
 try:
+    # Load the entire scikit-learn Pipeline (vectorizer + classifier)
     pipeline = joblib.load(MODEL_FILE)
-    print(f"Successfully loaded model from {MODEL_FILE}")
-except FileNotFoundError:
-    pipeline = None
-    print(f"ERROR: Model file '{MODEL_FILE}' not found. Please ensure it is in the same directory.")
+    print(f"Model '{MODEL_FILE}' loaded successfully.")
 except Exception as e:
-    pipeline = None
-    print(f"ERROR: Could not load model. Check if it's a valid scikit-learn object. Details: {e}")
+    # Print error and exit if model cannot be loaded
+    print(f"CRITICAL ERROR: Failed to load model. Details: {e}")
+    pipeline = None # Set to None so the app will show an error if run
 
-# --- Flask Application Setup ---
+# --- Flask App Setup ---
 app = Flask(__name__)
 
-# Basic HTML template for the web interface
-HTML_FORM = """
+# Very simple HTML template for the web page
+SIMPLE_HTML = """
 <!doctype html>
-<title>Spam Classifier</title>
-<h1 style="color: #333; font-family: Arial, sans-serif;">Spam or Ham SMS Predictor</h1>
-<form method="POST" style="padding: 20px; border: 1px solid #ccc; border-radius: 5px; max-width: 500px;">
-    <label for="sms_text" style="display: block; margin-bottom: 8px; font-family: Arial, sans-serif;">Enter SMS Text:</label>
-    <textarea id="sms_text" name="sms_text" rows="5" cols="50" style="width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;" required>{{ text_input }}</textarea><br>
-    <input type="submit" value="Classify" style="background-color: #4CAF50; color: white; padding: 10px 15px; margin-top: 10px; border: none; border-radius: 4px; cursor: pointer;">
+<title>Simple Spam Predictor</title>
+<h1>Spam or Ham Predictor</h1>
+
+<form method="POST">
+    <textarea name="sms_text" rows="4" cols="50" placeholder="Enter SMS text here..." required>{{ text_input or '' }}</textarea><br><br>
+    <input type="submit" value="Check Message">
 </form>
+
 {% if prediction_text %}
-<div style="margin-top: 20px; padding: 15px; border: 1px solid {% if 'SPAM' in prediction_text %}#f44336{% else %}#4CAF50{% endif %}; border-radius: 5px; max-width: 500px; background-color: {% if 'SPAM' in prediction_text %}#ffe0e0{% else %}#e0ffe0{% endif %}; font-family: Arial, sans-serif;">
-    <h2>Prediction Result:</h2>
-    <p style="font-size: 1.2em;">{{ prediction_text }}</p>
-</div>
+    <hr>
+    <h2>Result:</h2>
+    <p style="font-size: 1.2em; font-weight: bold; color: {{ 'red' if 'SPAM' in prediction_text else 'green' }};">{{ prediction_text }}</p>
 {% endif %}
 """
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if pipeline is None:
-        # If the model failed to load, display an error message
-        return render_template_string(
-            "<h1>Error</h1><p>The application could not start because the model file 'trained_spam_classifier_model.pkl' failed to load. Check the console for details.</p>"
-        ), 500
+        return "<h1>Application Error</h1><p>The prediction model failed to load. Please check the console for critical error details.</p>", 500
 
     prediction_text = None
     text_input = ""
 
     if request.method == 'POST':
-        # Get the text input from the form
+        # Get text from the form
         text_input = request.form.get('sms_text', '')
         
         if text_input:
-            # The model/pipeline expects a list-like object of texts for prediction
-            data_to_predict = [text_input]
-
             try:
-                # Use the loaded pipeline to transform the text and predict
-                prediction_result = pipeline.predict(data_to_predict)[0]
+                # 1. Prepare data (must be a list)
+                data_to_predict = [text_input]
                 
-                # Assuming the model was trained with 'spam' (1) and 'ham' (0) labels
-                if prediction_result == 1 or prediction_result in ('spam', '1'):
+                # 2. Make prediction using the loaded pipeline
+                prediction = pipeline.predict(data_to_predict)[0]
+                
+                # 3. Format the result
+                # Assumes 1 is SPAM and 0 is HAM
+                if prediction == 1 or str(prediction).lower() in ('spam', '1'):
                     label = "SPAM"
-                elif prediction_result == 0 or prediction_result in ('ham', '0'):
-                    label = "HAM (Not Spam)"
                 else:
-                    label = f"Unknown result: {prediction_result}"
+                    label = "HAM (Not Spam)"
                     
-                prediction_text = f"The message is: {label}"
+                prediction_text = f"This message is classified as: {label}"
 
             except Exception as e:
-                # Catch prediction errors (e.g., wrong input format, missing features)
-                prediction_text = f"An error occurred during prediction: {e}"
+                prediction_text = f"An internal prediction error occurred: {e}"
 
-    # Render the form with the prediction result (if any) and the text input
+    # Render the HTML template
     return render_template_string(
-        HTML_FORM, 
+        SIMPLE_HTML, 
         prediction_text=prediction_text, 
         text_input=text_input
     )
 
 if __name__ == '__main__':
-    # Run the application. Use debug=True for local development.
-    # Note: For production deployment, set debug=False.
+    # Runs the app on http://127.0.0.1:5000/
     app.run(debug=True)
